@@ -17,12 +17,15 @@ export function cn(...inputs: ClassValue[]) {
 export function toSeries(
   hourly: HourlyResp,
   key: string
-): Array<{ time: string; [key: string]: number }> {
-  return hourly.hourly.time.map((t, i) => ({
-    time: t,
-    [key]:
-      (hourly.hourly[key as keyof typeof hourly.hourly] as number[])?.[i] ?? 0,
-  }));
+): Array<{ time: string } & Record<string, number>> {
+  return hourly.hourly.time.map((t, i) => {
+    const value =
+      (hourly.hourly[key as keyof typeof hourly.hourly] as number[])?.[i] ?? 0;
+    return {
+      time: t,
+      [key]: value,
+    } as { time: string } & Record<string, number>;
+  });
 }
 
 /**
@@ -32,12 +35,11 @@ export function toSeries(
  */
 export function rainyDaysThisMonth(daily: DailyResp): number {
   const month = new Date().toISOString().slice(0, 7);
+  const precipitationSum = (daily.daily as Record<string, number[]>)
+    .precipitation_sum;
   return daily.daily.time.reduce(
     (acc, t, i) =>
-      acc +
-      (t.startsWith(month) && (daily.daily.precipitation_sum?.[i] ?? 0) > 0
-        ? 1
-        : 0),
+      acc + (t.startsWith(month) && (precipitationSum?.[i] ?? 0) > 0 ? 1 : 0),
     0
   );
 }
@@ -126,11 +128,12 @@ export function detectWindAlert(windSpeed: number): WeatherAlert | null {
  */
 export function detectAllAlerts(daily: DailyResp): WeatherAlert[] {
   const alerts: WeatherAlert[] = [];
+  const dailyData = daily.daily as Record<string, number[]>;
 
   daily.daily.time.forEach((_, i) => {
-    const tempMax = daily.daily.temperature_2m_max?.[i];
-    const precipitation = daily.daily.precipitation_sum?.[i];
-    const windSpeed = daily.daily.windspeed_10m_max?.[i];
+    const tempMax = dailyData.temperature_2m_max?.[i];
+    const precipitation = dailyData.precipitation_sum?.[i];
+    const windSpeed = dailyData.windspeed_10m_max?.[i];
 
     if (tempMax !== undefined) {
       const alert = detectTemperatureAlert(tempMax);
